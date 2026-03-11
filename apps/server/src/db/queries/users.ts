@@ -8,11 +8,13 @@ import {
 import { count, eq, inArray, sql, sum } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '..';
-import { supabaseAdmin } from '../../utils/supabase';
+import { verifyAccessToken } from '../../utils/better-auth';
 import { federationInstances, files, roles, serverMembers, userRoles, users } from '../schema';
 
 const slimFile = (file: TFile | null): TFileRef | null =>
   file ? { id: file.id, name: file.name } : null;
+
+type TAuthUser = TJoinedUser & { passwordHash: string; email: string };
 
 const getPublicUserById = async (
   userId: number
@@ -380,6 +382,58 @@ const getUserById = async (
   };
 };
 
+const getUserByEmail = async (
+  email: string
+): Promise<TAuthUser | undefined> => {
+  const avatarFiles = alias(files, 'avatarFiles');
+  const bannerFiles = alias(files, 'bannerFiles');
+
+  const [user] = await db
+    .select({
+      id: users.id,
+      supabaseId: users.supabaseId,
+      email: users.email,
+      passwordHash: users.passwordHash,
+      name: users.name,
+      avatarId: users.avatarId,
+      bannerId: users.bannerId,
+      bio: users.bio,
+      bannerColor: users.bannerColor,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+      lastLoginAt: users.lastLoginAt,
+      banned: users.banned,
+      banReason: users.banReason,
+      bannedAt: users.bannedAt,
+      isFederated: users.isFederated,
+      federatedInstanceId: users.federatedInstanceId,
+      federatedUsername: users.federatedUsername,
+      publicId: users.publicId,
+      federatedPublicId: users.federatedPublicId,
+      avatar: avatarFiles,
+      banner: bannerFiles
+    })
+    .from(users)
+    .leftJoin(avatarFiles, eq(users.avatarId, avatarFiles.id))
+    .leftJoin(bannerFiles, eq(users.bannerId, bannerFiles.id))
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (!user) return undefined;
+
+  const roles = await db
+    .select({ roleId: userRoles.roleId })
+    .from(userRoles)
+    .where(eq(userRoles.userId, user.id));
+
+  return {
+    ...user,
+    avatar: slimFile(user.avatar),
+    banner: slimFile(user.banner),
+    roleIds: roles.map((r) => r.roleId)
+  };
+};
+
 const getUserBySupabaseId = async (
   supabaseId: string
 ): Promise<TJoinedUser | undefined> => {
@@ -431,22 +485,12 @@ const getUserBySupabaseId = async (
 };
 
 const getUserByToken = async (token: string | undefined) => {
-  try {
-    if (!token) return undefined;
+  if (!token) return undefined;
 
-    const {
-      data: { user: supabaseUser },
-      error
-    } = await supabaseAdmin.auth.getUser(token);
+  const userId = await verifyAccessToken(token);
+  if (!userId) return undefined;
 
-    if (error || !supabaseUser) return undefined;
-
-    const user = await getUserBySupabaseId(supabaseUser.id);
-
-    return user;
-  } catch {
-    return undefined;
-  }
+  return getUserBySupabaseId(userId);
 };
 
 const getUsers = async (serverId?: number): Promise<TJoinedUser[]> => {
@@ -653,6 +697,7 @@ export {
   getPublicUsersForServer,
   getStorageUsageByUserId,
   getUserById,
+  getUserByEmail,
   getUserBySupabaseId,
   getUserByToken,
   getUsers,

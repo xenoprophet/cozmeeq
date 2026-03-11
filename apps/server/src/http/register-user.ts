@@ -10,6 +10,8 @@ import { invariant } from '../utils/invariant';
 
 const registerUser = async (
   supabaseUserId: string,
+  email: string,
+  passwordHash: string,
   inviteCode?: string,
   ip?: string,
   name?: string
@@ -24,6 +26,8 @@ const registerUser = async (
     .values({
       name,
       supabaseId: supabaseUserId,
+      email,
+      passwordHash,
       publicId: randomUUIDv7(),
       createdAt: Date.now()
     })

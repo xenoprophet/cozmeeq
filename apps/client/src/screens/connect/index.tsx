@@ -17,17 +17,9 @@ import {
   setLocalStorageItem
 } from '@/helpers/storage';
 import { useForm } from '@/hooks/use-form';
-import { supabase } from '@/lib/supabase';
-import type { Provider } from '@supabase/supabase-js';
+import { setAuthSession } from '@/lib/auth-session';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-
-const OAUTH_PROVIDER_LABELS: Record<string, string> = {
-  google: 'Google',
-  discord: 'Discord',
-  facebook: 'Facebook',
-  twitch: 'Twitch'
-};
 
 const Connect = memo(() => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -102,9 +94,9 @@ const Connect = memo(() => {
         refreshToken: string;
       };
 
-      await supabase.auth.setSession({
-        access_token: data.accessToken,
-        refresh_token: data.refreshToken
+      await setAuthSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken
       });
 
       if (loginForm.values.rememberCredentials) {
@@ -166,9 +158,9 @@ const Connect = memo(() => {
         refreshToken: string;
       };
 
-      await supabase.auth.setSession({
-        access_token: data.accessToken,
-        refresh_token: data.refreshToken
+      await setAuthSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken
       });
 
       await connect();
@@ -199,23 +191,6 @@ const Connect = memo(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerForm.values, registerForm.setErrors, inviteCode]);
 
-  const onOAuthClick = useCallback(
-    async (provider: string) => {
-      const redirectTo = new URL(window.location.origin);
-
-      if (inviteCode) {
-        redirectTo.searchParams.set('invite', inviteCode);
-      }
-
-      await supabase.auth.signInWithOAuth({
-        provider: provider as Provider,
-        options: {
-          redirectTo: redirectTo.toString()
-        }
-      });
-    },
-    [inviteCode]
-  );
 
   const logoSrc = useMemo(() => {
     if (info?.logo) {
@@ -225,35 +200,7 @@ const Connect = memo(() => {
     return '/logo.png';
   }, [info]);
 
-  const OAuthSection = useMemo(() => {
-      const providers = info?.enabledAuthProviders ?? [];
-      return providers.length > 0 ? (
-        <>
-          <div className="flex items-center gap-3 my-1">
-            <Separator className="flex-1" />
-            <span className="text-xs text-muted-foreground/60 uppercase tracking-wider">
-              or
-            </span>
-            <Separator className="flex-1" />
-          </div>
-          <div className="flex gap-2">
-            {providers.map((provider) => (
-              <Button
-                key={provider}
-                className="flex-1"
-                variant="outline"
-                disabled={loading}
-                onClick={() => onOAuthClick(provider)}
-              >
-                {OAUTH_PROVIDER_LABELS[provider] ?? provider}
-              </Button>
-            ))}
-          </div>
-        </>
-      ) : null;
-    },
-    [info?.enabledAuthProviders, loading, onOAuthClick]
-  );
+  const OAuthSection = null;
 
   return (
     <>

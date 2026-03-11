@@ -54,7 +54,7 @@ export type TFile = InferSelectModel<typeof files> & {
   _accessToken?: string;
 };
 export type TFileRef = Pick<TFile, 'id' | 'name'>;
-export type TUser = InferSelectModel<typeof users>;
+export type TUser = Omit<InferSelectModel<typeof users>, 'email' | 'passwordHash'>;
 export type TLogin = InferSelectModel<typeof logins>;
 export type TMessage = InferSelectModel<typeof messages>;
 export type TMessageFile = InferSelectModel<typeof messageFiles>;
