@@ -11,7 +11,7 @@ import {
 import { connectionManager } from '@/lib/connection-manager';
 import { initE2EE, initE2EEForInstance } from '@/lib/e2ee';
 import { getHomeTRPCClient } from '@/lib/trpc';
-import { getAccessToken, initSupabase } from '@/lib/supabase';
+import { getAccessToken } from '@/lib/auth-session';
 import type { TServerInfo, TServerSummary } from '@pulse/shared';
 import { toast } from 'sonner';
 import { connect, fetchDeferredServerData, getHandshakeHash, joinServer, reinitServerSubscriptions, setInfo } from '../server/actions';
@@ -185,34 +185,11 @@ export const loadApp = async () => {
   setInfo(info);
   setGiphyApiKey(info.giphyApiKey);
 
-  // Initialize Supabase client from server-provided config (supports multi-domain deployment)
-  if (info.supabaseUrl && info.supabaseAnonKey) {
-    initSupabase(info.supabaseUrl, info.supabaseAnonKey);
-  }
-
   // Try to auto-connect if a valid session exists
   const token = await getAccessToken();
 
   if (token) {
     try {
-      // Provision the user in the app database if they don't exist yet
-      // (required for OAuth users who authenticated via Supabase but haven't
-      // been registered in the Pulse database)
-      const url = getUrlFromServer();
-      const provisionRes = await fetch(`${url}/auth/provision`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!provisionRes.ok) {
-        const errorData = await provisionRes.json().catch(() => ({}));
-        console.error('Provision failed:', errorData);
-        throw new Error(errorData.error || 'Failed to provision user');
-      }
-
       // Try connecting directly — the WebSocket validates the token
       await connect();
 
@@ -232,7 +209,6 @@ export const loadApp = async () => {
     } catch (error) {
       console.error('Auto-connect failed, showing login:', error);
       // Don't sign out — just show the login page.
-      // The stored session might still be usable for a fresh signInWithPassword.
     }
   }
 
