@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { db } from '../../db';
 import { users } from '../../db/schema';
 import { enqueueActivityLog } from '../../queues/activity-log';
+import { hashPassword, verifyPassword } from '../../utils/better-auth';
 import { invariant } from '../../utils/invariant';
-import { supabaseAdmin } from '../../utils/supabase';
 import { protectedProcedure } from '../../utils/trpc';
 
 const updatePasswordRoute = protectedProcedure
@@ -19,7 +19,7 @@ const updatePasswordRoute = protectedProcedure
   .mutation(async ({ ctx, input }) => {
     const [user] = await db
       .select({
-        supabaseId: users.supabaseId
+        passwordHash: users.passwordHash
       })
       .from(users)
       .where(eq(users.id, ctx.userId))
@@ -30,23 +30,12 @@ const updatePasswordRoute = protectedProcedure
       message: 'User not found'
     });
 
-    // Verify current password via Supabase Auth
-    const { data: supabaseUser } = await supabaseAdmin.auth.admin.getUserById(
-      user.supabaseId
+    const isCurrentPasswordValid = await verifyPassword(
+      input.currentPassword,
+      user.passwordHash
     );
 
-    invariant(supabaseUser?.user?.email, {
-      code: 'NOT_FOUND',
-      message: 'User not found in auth system'
-    });
-
-    const { error: signInError } =
-      await supabaseAdmin.auth.signInWithPassword({
-        email: supabaseUser.user.email,
-        password: input.currentPassword
-      });
-
-    if (signInError) {
+    if (!isCurrentPasswordValid) {
       ctx.throwValidationError(
         'currentPassword',
         'Current password is incorrect'
@@ -60,18 +49,10 @@ const updatePasswordRoute = protectedProcedure
       );
     }
 
-    // Update password via Supabase Auth
-    const { error: updateError } =
-      await supabaseAdmin.auth.admin.updateUserById(user.supabaseId, {
-        password: input.newPassword
-      });
-
-    if (updateError) {
-      ctx.throwValidationError(
-        'newPassword',
-        'Failed to update password'
-      );
-    }
+    await db
+      .update(users)
+      .set({ passwordHash: await hashPassword(input.newPassword) })
+      .where(eq(users.id, ctx.userId));
 
     enqueueActivityLog({
       type: ActivityLogType.USER_UPDATED_PASSWORD,

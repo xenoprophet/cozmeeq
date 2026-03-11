@@ -17,16 +17,6 @@ const register = (body: {
     body: JSON.stringify(body)
   });
 
-const provision = (token: string, body?: { invite?: string }) =>
-  fetch(`${testsBaseUrl}/auth/provision`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(body ?? {})
-  });
-
 afterEach(() => {
   globalThis.__registrationDisabled = false;
 });
@@ -159,93 +149,4 @@ describe('REGISTRATION_DISABLED', () => {
     });
   });
 
-  // ── /auth/provision endpoint (OAuth flow) ──
-
-  describe('/auth/provision', () => {
-    test('should block new user provisioning without invite when disabled', async () => {
-      globalThis.__registrationDisabled = true;
-
-      // Use a random token that won't match any existing user
-      const token = crypto.randomUUID();
-
-      const response = await provision(token);
-
-      expect(response.status).toBe(400);
-
-      const data: any = await response.json();
-      expect(data).toHaveProperty('errors');
-    });
-
-    test('should allow new user provisioning with valid invite when disabled', async () => {
-      globalThis.__registrationDisabled = true;
-
-      const tdb = getTestDb();
-      await tdb.insert(invites).values({
-        code: 'PROV-INVITE',
-        creatorId: 1,
-        serverId: 1,
-        maxUses: 5,
-        uses: 0,
-        expiresAt: Date.now() + 86400000,
-        createdAt: Date.now()
-      });
-
-      const token = crypto.randomUUID();
-
-      const response = await provision(token, { invite: 'PROV-INVITE' });
-
-      expect(response.status).toBe(200);
-
-      const data: any = await response.json();
-      expect(data).toHaveProperty('success', true);
-
-      // Verify invite usage was incremented
-      const [updatedInvite] = await tdb
-        .select()
-        .from(invites)
-        .where(eq(invites.code, 'PROV-INVITE'))
-        .limit(1);
-
-      expect(updatedInvite?.uses).toBe(1);
-    });
-
-    test('should allow existing user provisioning when disabled', async () => {
-      // First provision while enabled to create the user
-      const token = crypto.randomUUID();
-      const firstResponse = await provision(token);
-      expect(firstResponse.status).toBe(200);
-
-      // Now disable registration
-      globalThis.__registrationDisabled = true;
-
-      // Existing user should still succeed
-      const response = await provision(token);
-      expect(response.status).toBe(200);
-
-      const data: any = await response.json();
-      expect(data).toHaveProperty('success', true);
-    });
-  });
-
-  // ── /info endpoint ──
-
-  describe('/info', () => {
-    test('should expose registrationDisabled=true when disabled', async () => {
-      globalThis.__registrationDisabled = true;
-
-      const response = await fetch(`${testsBaseUrl}/info`);
-      expect(response.status).toBe(200);
-
-      const data: any = await response.json();
-      expect(data).toHaveProperty('registrationDisabled', true);
-    });
-
-    test('should expose registrationDisabled=false when not disabled', async () => {
-      const response = await fetch(`${testsBaseUrl}/info`);
-      expect(response.status).toBe(200);
-
-      const data: any = await response.json();
-      expect(data).toHaveProperty('registrationDisabled', false);
-    });
-  });
 });

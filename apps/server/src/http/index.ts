@@ -21,7 +21,6 @@ import { healthRouteHandler } from './healthz';
 import { infoRouteHandler } from './info';
 import { interfaceRouteHandler } from './interface';
 import { loginRouteHandler } from './login';
-import { provisionRouteHandler } from './provision-user';
 import { registerRouteHandler } from './register';
 import { publicRouteHandler } from './public';
 import { uploadFileRouteHandler } from './upload';
@@ -138,10 +137,6 @@ const createHttpServer = async (port: number = config.server.port) => {
             return await registerRouteHandler(req, res);
           }
 
-          if (req.method === 'POST' && req.url === '/auth/provision') {
-            if (!checkRateLimit(req, res, authRateLimit)) return;
-            return await provisionRouteHandler(req, res);
-          }
 
           if (
             req.method === 'POST' &&

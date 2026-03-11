@@ -7,7 +7,7 @@ import {
 } from '@/features/server/actions';
 import { loadFederatedServers } from '@/features/app/actions';
 import { store } from '@/features/store';
-import { getAccessToken } from '@/lib/supabase';
+import { getAccessToken } from '@/lib/auth-session';
 import { DisconnectCode } from '@pulse/shared';
 
 const MAX_ATTEMPTS = 10;

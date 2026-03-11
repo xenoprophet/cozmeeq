@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/lib/supabase';
+import { getAccessToken } from '@/lib/auth-session';
 import { store } from '@/features/store';
 import { encryptFile } from '@/lib/e2ee/file-crypto';
 import { UploadHeaders, type TTempFile } from '@pulse/shared';

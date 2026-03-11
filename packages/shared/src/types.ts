@@ -101,8 +101,6 @@ export type TServerInfo = Pick<
   version: string;
   registrationDisabled?: boolean;
   enabledAuthProviders?: string[];
-  supabaseUrl: string;
-  supabaseAnonKey: string;
   giphyApiKey?: string;
 };
 
