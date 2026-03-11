@@ -1,0 +1,114 @@
+services:
+  db:
+    image: supabase/postgres:15.6.1.143
+    restart: unless-stopped
+    container_name: pulse-db
+    entrypoint: ["/bin/bash", "/docker-entrypoint-custom/db-entrypoint.sh"]
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./docker/db-entrypoint.sh:/docker-entrypoint-custom/db-entrypoint.sh:ro
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres && test -f /tmp/.db-init-complete"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  auth:
+    image: supabase/gotrue:v2.170.0
+    restart: unless-stopped
+    container_name: pulse-auth
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-}
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_OAUTH_ENABLED:-false}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_OAUTH_SECRET:-}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${SITE_URL}/auth/v1/callback
+      GOTRUE_EXTERNAL_DISCORD_ENABLED: ${DISCORD_OAUTH_ENABLED:-false}
+      GOTRUE_EXTERNAL_DISCORD_CLIENT_ID: ${DISCORD_OAUTH_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_DISCORD_SECRET: ${DISCORD_OAUTH_SECRET:-}
+      GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI: ${SITE_URL}/auth/v1/callback
+      GOTRUE_EXTERNAL_FACEBOOK_ENABLED: ${FACEBOOK_OAUTH_ENABLED:-false}
+      GOTRUE_EXTERNAL_FACEBOOK_CLIENT_ID: ${FACEBOOK_OAUTH_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_FACEBOOK_SECRET: ${FACEBOOK_OAUTH_SECRET:-}
+      GOTRUE_EXTERNAL_FACEBOOK_REDIRECT_URI: ${SITE_URL}/auth/v1/callback
+      GOTRUE_EXTERNAL_TWITCH_ENABLED: ${TWITCH_OAUTH_ENABLED:-false}
+      GOTRUE_EXTERNAL_TWITCH_CLIENT_ID: ${TWITCH_OAUTH_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_TWITCH_SECRET: ${TWITCH_OAUTH_SECRET:-}
+      GOTRUE_EXTERNAL_TWITCH_REDIRECT_URI: ${SITE_URL}/auth/v1/callback
+      API_EXTERNAL_URL: ${SITE_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kong:
+    image: kong:3.4
+    restart: unless-stopped
+    container_name: pulse-kong
+    depends_on:
+      auth:
+        condition: service_healthy
+    volumes:
+      - ./docker/kong-supabase.yml:/home/kong/kong.yml:ro
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pulse:
+    image: ghcr.io/plsechat/pulse-chat:latest
+    restart: unless-stopped
+    container_name: pulse
+    depends_on:
+      db:
+        condition: service_healthy
+      kong:
+        condition: service_healthy
+    ports:
+      - "${PULSE_PORT:-4991}:4991"
+      - "40000-40020:40000-40020/udp"
+    env_file: .env
+    environment:
+      RUNNING_IN_DOCKER: "true"
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${SITE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-false}
+      PUBLIC_IP: ${PUBLIC_IP}
+    volumes:
+      - ./data/pulse:/root/.config/pulse
+    healthcheck:
+      test: ["CMD-SHELL", "bun -e \"fetch('http://localhost:4991/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s

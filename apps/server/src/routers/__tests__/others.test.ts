@@ -1,0 +1,151 @@
+import type { TTempFile } from '@pulse/shared';
+import { describe, expect, test } from 'bun:test';
+import {
+  getCaller,
+  initTest,
+  login,
+  uploadFile
+} from '../../__tests__/helpers';
+import { TEST_SECRET_TOKEN } from '../../__tests__/seed';
+
+describe('others router', () => {
+  test('should throw when user tries to join with no handshake', async () => {
+    const { caller } = await getCaller(1);
+
+    await expect(
+      caller.others.joinServer({
+        handshakeHash: ''
+      })
+    ).rejects.toThrow('Invalid handshake hash');
+  });
+
+  test('should allow user to join with valid handshake', async () => {
+    const joiningUserId = 1;
+
+    const { caller } = await getCaller(joiningUserId);
+    const { handshakeHash } = await caller.others.handshake();
+
+    const result = await caller.others.joinServer({
+      handshakeHash
+    });
+
+    expect(result).toHaveProperty('categories');
+    expect(result).toHaveProperty('channels');
+    expect(result).toHaveProperty('serverId');
+    expect(result).toHaveProperty('serverName');
+    expect(result).toHaveProperty('ownUserId');
+    expect(result).toHaveProperty('roles');
+    expect(result).toHaveProperty('channelPermissions');
+
+    // Users, emojis, and voice state are now fetched separately via deferred endpoints
+    expect(result).not.toHaveProperty('users');
+    expect(result).not.toHaveProperty('emojis');
+    expect(result).not.toHaveProperty('voiceMap');
+
+    expect(result.ownUserId).toBe(joiningUserId);
+  });
+
+  test('handshake should not include hasPassword', async () => {
+    const { caller } = await initTest(1);
+
+    await caller.others.updateSettings({ serverId: 1, password: 'testpassword' });
+
+    const result = await caller.others.handshake();
+    expect(result).not.toHaveProperty('hasPassword');
+    expect(result).toHaveProperty('handshakeHash');
+
+    // Clean up
+    await caller.others.updateSettings({ serverId: 1, password: null });
+  });
+
+  test('should allow existing member to join without password even if server has one', async () => {
+    const { caller } = await initTest(1);
+
+    await caller.others.updateSettings({ serverId: 1, password: 'testpassword' });
+
+    const { handshakeHash } = await caller.others.handshake();
+    const result = await caller.others.joinServer({ handshakeHash });
+
+    expect(result).toHaveProperty('categories');
+    expect(result).toHaveProperty('channels');
+
+    // Clean up
+    await caller.others.updateSettings({ serverId: 1, password: null });
+  });
+
+  test('should update server settings', async () => {
+    const { caller } = await initTest(1);
+
+    const newSettings = {
+      name: 'Updated Test Server',
+      description: 'An updated description',
+      allowNewUsers: false,
+      storageUploadEnabled: false
+    };
+
+    await caller.others.updateSettings({ serverId: 1, ...newSettings });
+
+    const settings = await caller.others.getSettings({ serverId: 1 });
+
+    expect(settings.name).toBe(newSettings.name);
+    expect(settings.description).toBe(newSettings.description);
+    expect(settings.allowNewUsers).toBe(newSettings.allowNewUsers);
+    expect(settings.storageUploadEnabled).toBe(
+      newSettings.storageUploadEnabled
+    );
+  });
+
+  test('should throw when using invalid secret token', async () => {
+    const { caller } = await initTest(2);
+
+    await expect(
+      caller.others.useSecretToken({ token: 'invalid-token' })
+    ).rejects.toThrow('Invalid secret token');
+  });
+
+  test('should accept valid secret token and assign owner role', async () => {
+    const { caller } = await initTest(2);
+
+    await caller.others.useSecretToken({ token: TEST_SECRET_TOKEN });
+
+    const allUsers = await caller.users.getAll();
+    const updatedUser = allUsers.find((u) => u.id === 2);
+
+    expect(updatedUser).toBeDefined();
+    expect(updatedUser?.roleIds).toContain(1);
+  });
+
+  test('should change logo', async () => {
+    const { caller } = await initTest(1);
+
+    const response = await login('testowner', 'password123');
+    const { accessToken: token } = (await response.json()) as { accessToken: string };
+
+    const logoFile = new File(['logo content'], 'logo.png', {
+      type: 'image/png'
+    });
+
+    const uploadResponse = await uploadFile(logoFile, token);
+    const tempFile = (await uploadResponse.json()) as TTempFile;
+
+    expect(tempFile).toBeDefined();
+    expect(tempFile.id).toBeDefined();
+
+    const settingsBefore = await caller.others.getSettings({ serverId: 1 });
+
+    expect(settingsBefore.logo).toBeNull();
+
+    await caller.others.changeLogo({ serverId: 1, fileId: tempFile.id });
+
+    const settingsAfter = await caller.others.getSettings({ serverId: 1 });
+
+    expect(settingsAfter.logo).toBeDefined();
+    expect(settingsAfter.logo?.originalName).toBe(logoFile.name);
+
+    await caller.others.changeLogo({ serverId: 1,});
+
+    const settingsAfterRemoval = await caller.others.getSettings({ serverId: 1 });
+
+    expect(settingsAfterRemoval.logo).toBeNull();
+  });
+});
