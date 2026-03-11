@@ -88,6 +88,7 @@ A config file is generated at `~/.config/pulse/config.ini` on first run.
 | http | `maxFiles` | `40` | Max files per upload |
 | http | `maxFileSize` | `100` | Max file size (MB) |
 | mediasoup | `worker.rtcMinPort` | `40000` | WebRTC port range start |
+| voice | `backend` | `mediasoup` | Voice backend selector (LiveKit migration in progress) |
 | mediasoup | `worker.rtcMaxPort` | `40020` | WebRTC port range end |
 | mediasoup | `video.initialAvailableOutgoingBitrate` | `6000000` | Bandwidth per stream (bps) |
 | federation | `enabled` | `false` | Turn on federation |

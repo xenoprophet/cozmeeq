@@ -16,6 +16,7 @@ import { loadDb } from './db';
 import { pluginManager } from './plugins';
 import { enqueueActivityLog } from './queues/activity-log';
 import { initVoiceRuntimes } from './runtimes';
+import { assertSupportedVoiceBackend } from './runtimes/backend';
 import { createServers } from './utils/create-servers';
 import { loadMediasoup } from './utils/mediasoup';
 import { logger } from './logger';
@@ -38,13 +39,7 @@ try {
   process.exit(1);
 }
 
-console.log('[pulse] Starting HTTP and WebSocket servers...');
-try {
-  await createServers();
-} catch (e) {
-  console.error('[pulse] FATAL: Server creation failed:', e);
-  process.exit(1);
-}
+assertSupportedVoiceBackend();
 
 console.log('[pulse] Initializing mediasoup workers...');
 try {
@@ -59,6 +54,14 @@ try {
   await initVoiceRuntimes();
 } catch (e) {
   console.error('[pulse] FATAL: Voice runtime initialization failed:', e);
+  process.exit(1);
+}
+
+console.log('[pulse] Starting HTTP and WebSocket servers...');
+try {
+  await createServers();
+} catch (e) {
+  console.error('[pulse] FATAL: Server creation failed:', e);
   process.exit(1);
 }
 

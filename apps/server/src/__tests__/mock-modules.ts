@@ -16,7 +16,8 @@ mock.module('../config', () => ({
       audio: { maxBitrate: 510000, stereo: true, fec: true, dtx: true },
       video: { initialAvailableOutgoingBitrate: 6000000 }
     },
-    federation: { enabled: false, domain: '' }
+    federation: { enabled: false, domain: '' },
+    voice: { backend: 'mediasoup' }
   },
   SERVER_PUBLIC_IP: '127.0.0.1',
   SERVER_PRIVATE_IP: '127.0.0.1'

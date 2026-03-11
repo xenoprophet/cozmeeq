@@ -4,8 +4,13 @@ import { MEDIASOUP_BINARY_PATH } from '../helpers/paths.js';
 import { logger } from '../logger.js';
 
 let mediaSoupWorker: mediasoup.types.Worker<mediasoup.types.AppData>;
+let mediaSoupWorkerPromise: Promise<mediasoup.types.Worker<mediasoup.types.AppData>> | null = null;
 
-const loadMediasoup = async () => {
+const loadMediasoup = async (): Promise<mediasoup.types.Worker<mediasoup.types.AppData>> => {
+  if (mediaSoupWorker) return mediaSoupWorker;
+  if (mediaSoupWorkerPromise) return mediaSoupWorkerPromise;
+
+  mediaSoupWorkerPromise = (async () => {
   const workerConfig: mediasoup.types.WorkerSettings = {
     rtcMinPort: +config.mediasoup.worker.rtcMinPort,
     rtcMaxPort: +config.mediasoup.worker.rtcMaxPort,
@@ -18,17 +23,28 @@ const loadMediasoup = async () => {
     `Loading mediasoup worker with config ${JSON.stringify(workerConfig, null, 2)}`
   );
 
-  mediaSoupWorker = await mediasoup.createWorker(workerConfig);
+    mediaSoupWorker = await mediasoup.createWorker(workerConfig);
 
-  mediaSoupWorker.on('died', (error) => {
+    mediaSoupWorker.on('died', (error) => {
     logger.error('Mediasoup worker died', error);
 
     setTimeout(() => process.exit(0), 2000);
   });
 
-  logger.debug(
-    `Mediasoup worker loaded (port range: ${workerConfig.rtcMinPort}-${workerConfig.rtcMaxPort})`
-  );
+    logger.debug(
+      `Mediasoup worker loaded (port range: ${workerConfig.rtcMinPort}-${workerConfig.rtcMaxPort})`
+    );
+
+    return mediaSoupWorker;
+  })();
+
+  try {
+    return await mediaSoupWorkerPromise;
+  } finally {
+    mediaSoupWorkerPromise = null;
+  }
 };
 
-export { loadMediasoup, mediaSoupWorker };
+const getMediaSoupWorker = async () => loadMediasoup();
+
+export { getMediaSoupWorker, loadMediasoup, mediaSoupWorker };
