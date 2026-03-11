@@ -8,7 +8,7 @@
   A self-hosted chat platform built for privacy, voice, and connecting communities.
   <br />
   <a href="https://plse.chat"><strong>plse.chat</strong></a> &middot;
-  <a href="README-SELFHOSTED-SUPABASE.md">Self-Hosting Guide</a> &middot;
+  <a href=".env.example">Environment Example</a> &middot;
   <a href="https://github.com/plsechat/pulse-chat/releases">Releases</a>
 </p>
 
@@ -41,12 +41,11 @@ Pulse is a self-hosted alternative to Discord and Slack that puts you in control
 | **Custom emojis** | Upload and manage emojis per server |
 | **Automod** | Keyword filters, regex rules, mention limits, and link blocking |
 | **Webhooks** | Push events to external services |
-| **OAuth login** | Google, Discord, Facebook, Twitch — toggle each on or off |
 | **Invite-only mode** | Lock down registration so only invited users can join |
 
 ## Getting started
 
-Pulse needs a Supabase backend (auth + database). You can use [Supabase Cloud](https://supabase.com) or self-host everything together — see the [Self-Hosted Guide](README-SELFHOSTED-SUPABASE.md) for the full Docker Compose setup with PostgreSQL, GoTrue, and Kong.
+Pulse runs with PostgreSQL for data and built-in authentication. Start by copying `.env.example` to `.env` and setting `DATABASE_URL` + `AUTH_JWT_SECRET`.
 
 ### Docker
 
@@ -60,7 +59,7 @@ docker run \
   ghcr.io/plsechat/pulse-chat:latest
 ```
 
-For production with Supabase bundled, use [docker-compose-supabase.yml](docker-compose-supabase.yml) from the [Self-Hosted Guide](README-SELFHOSTED-SUPABASE.md).
+For production, provide a managed PostgreSQL connection string in `DATABASE_URL` and run Pulse behind a reverse proxy.
 
 ### Linux binary
 
@@ -89,6 +88,7 @@ A config file is generated at `~/.config/pulse/config.ini` on first run.
 | http | `maxFiles` | `40` | Max files per upload |
 | http | `maxFileSize` | `100` | Max file size (MB) |
 | mediasoup | `worker.rtcMinPort` | `40000` | WebRTC port range start |
+| voice | `backend` | `mediasoup` | Voice backend selector (LiveKit migration in progress) |
 | mediasoup | `worker.rtcMaxPort` | `40020` | WebRTC port range end |
 | mediasoup | `video.initialAvailableOutgoingBitrate` | `6000000` | Bandwidth per stream (bps) |
 | federation | `enabled` | `false` | Turn on federation |
@@ -99,11 +99,11 @@ A config file is generated at `~/.config/pulse/config.ini` on first run.
 
 ## HTTPS
 
-Pulse doesn't terminate TLS. Put a reverse proxy in front — Caddy, Nginx, or Traefik all work. The [Self-Hosted Guide](README-SELFHOSTED-SUPABASE.md#set-up-https) has example configs for Caddy and Nginx.
+Pulse doesn't terminate TLS. Put a reverse proxy in front — Caddy, Nginx, or Traefik all work.
 
 ## Built with
 
-[Bun](https://bun.sh) · [React](https://react.dev) · [tRPC](https://trpc.io) · [Drizzle ORM](https://orm.drizzle.team) · [Mediasoup](https://mediasoup.org) · [Tailwind CSS](https://tailwindcss.com) · [Supabase](https://supabase.com) · [Signal Protocol](https://signal.org/docs/)
+[Bun](https://bun.sh) · [React](https://react.dev) · [tRPC](https://trpc.io) · [Drizzle ORM](https://orm.drizzle.team) · [Mediasoup](https://mediasoup.org) · [Tailwind CSS](https://tailwindcss.com)  · [Signal Protocol](https://signal.org/docs/)
 
 ## License
 

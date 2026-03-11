@@ -25,7 +25,7 @@ import { channels } from '../db/schema';
 import { logger } from '../logger';
 import { eventBus } from '../plugins/event-bus';
 import { IS_PRODUCTION } from '../utils/env';
-import { mediaSoupWorker } from '../utils/mediasoup';
+import { getMediaSoupWorker, mediaSoupWorker } from '../utils/mediasoup';
 import { pubsub } from '../utils/pubsub';
 
 const voiceRuntimes = new Map<number, VoiceRuntime>();
@@ -383,7 +383,8 @@ class VoiceRuntime {
   };
 
   private createRouter = async () => {
-    const router = await mediaSoupWorker.createRouter(defaultRouterOptions);
+    const worker = mediaSoupWorker ?? await getMediaSoupWorker();
+    const router = await worker.createRouter(defaultRouterOptions);
 
     this.router = router;
   };

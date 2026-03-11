@@ -5,7 +5,7 @@ import { resetFriendsState } from '@/features/friends/actions';
 import { resetServerScreens } from '@/features/server-screens/actions';
 import { resetServerState, setDisconnectInfo } from '@/features/server/actions';
 import { store } from '@/features/store';
-import { getAccessToken, supabase } from '@/lib/supabase';
+import { clearAuthSession, getAccessToken } from '@/lib/auth-session';
 import { connectionManager } from '@/lib/connection-manager';
 import { startReconnecting, stopReconnecting, isCurrentlyReconnecting } from '@/lib/reconnect';
 import { DisconnectCode, type AppRouter, type TConnectionParams } from '@pulse/shared';
@@ -133,7 +133,7 @@ const cleanup = (signOut = false) => {
   fullTeardown();
 
   if (signOut) {
-    supabase.auth.signOut({ scope: 'local' });
+    clearAuthSession();
   }
 };
 

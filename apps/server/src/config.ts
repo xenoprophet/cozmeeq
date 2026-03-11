@@ -40,6 +40,9 @@ type TConfig = {
     enabled: boolean;
     domain: string;
   };
+  voice: {
+    backend: 'mediasoup' | 'livekit';
+  };
 };
 
 let config: TConfig = {
@@ -70,6 +73,9 @@ let config: TConfig = {
   federation: {
     enabled: false,
     domain: ''
+  },
+  voice: {
+    backend: 'mediasoup'
   }
 };
 
@@ -90,6 +96,12 @@ if (process.env.DEBUG) {
 
 const parsed = parse(text) as Record<string, unknown>;
 
+if (process.env.VOICE_BACKEND) {
+  const parsedVoice = (parsed.voice as Record<string, unknown> | undefined) || {};
+  parsedVoice.backend = process.env.VOICE_BACKEND;
+  parsed.voice = parsedVoice;
+}
+
 // Deep-merge parsed INI over defaults so new sections (e.g. federation)
 // are always present even on existing installs.
 config = {
@@ -109,7 +121,8 @@ config = {
       ...((parsed.mediasoup as Record<string, object>)?.video as object)
     }
   },
-  federation: { ...config.federation, ...(parsed.federation as object) }
+  federation: { ...config.federation, ...(parsed.federation as object) },
+  voice: { ...config.voice, ...(parsed.voice as object) }
 } as TConfig;
 
 // Coerce INI string values back to proper types
@@ -126,5 +139,6 @@ config.mediasoup.audio.fec = String(config.mediasoup.audio.fec) === 'true';
 config.mediasoup.audio.dtx = String(config.mediasoup.audio.dtx) === 'true';
 config.mediasoup.video.initialAvailableOutgoingBitrate = Number(config.mediasoup.video.initialAvailableOutgoingBitrate);
 config.federation.enabled = String(config.federation.enabled) === 'true';
+config.voice.backend = config.voice.backend === 'livekit' ? 'livekit' : 'mediasoup';
 
 export { config, SERVER_PRIVATE_IP, SERVER_PUBLIC_IP };

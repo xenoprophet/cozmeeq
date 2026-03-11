@@ -13,8 +13,8 @@ async function createIsolatedUser(name: string) {
   const now = Date.now();
 
   const [user] = await tdb.execute(sql`
-    INSERT INTO users (name, supabase_id, public_id, created_at, last_login_at)
-    VALUES (${name}, ${`isolated-${randomUUIDv7()}`}, ${randomUUIDv7()}, ${now}, ${now})
+    INSERT INTO users (name, supabase_id, email, password_hash, public_id, created_at, last_login_at)
+    VALUES (${name}, ${`isolated-${randomUUIDv7()}`}, ${`isolated-${randomUUIDv7()}@pulse.local`}, ${'test-hash'}, ${randomUUIDv7()}, ${now}, ${now})
     RETURNING id
   `);
 

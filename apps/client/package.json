@@ -36,7 +36,6 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@reduxjs/toolkit": "^2.9.0",
-    "@supabase/supabase-js": "^2.49.1",
     "@tailwindcss/vite": "^4.1.13",
     "@tiptap/core": "^3.7.2",
     "@tiptap/extension-emoji": "^3.7.2",

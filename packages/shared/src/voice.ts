@@ -1,4 +1,19 @@
-import type { IceCandidate, IceParameters } from "mediasoup/types";
+type TIceParameters = {
+  usernameFragment?: string;
+  password?: string;
+  iceLite?: boolean;
+};
+
+type TIceCandidate = {
+  foundation: string;
+  priority: number;
+  address: string;
+  protocol: 'udp' | 'tcp';
+  port: number;
+  type: string;
+  tcpType?: string;
+};
+
 import type { TExternalStreamTracks } from "./types";
 
 export type TVoiceUserState = {
@@ -29,8 +44,8 @@ export type TChannelState = {
 
 export type TTransportParams = {
   id: string;
-  iceParameters: IceParameters;
-  iceCandidates: IceCandidate[];
+  iceParameters: TIceParameters;
+  iceCandidates: TIceCandidate[];
   dtlsParameters: any;
 };
 
