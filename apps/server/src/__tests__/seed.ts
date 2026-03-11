@@ -34,10 +34,6 @@ import {
 const TEST_SECRET_TOKEN = 'test-secret-token-for-unit-tests';
 
 const seedDatabase = async (db: PostgresJsDatabase) => {
-  // Clear the in-memory supabase auth store so stale entries from a prior seed
-  // don't collide with the fresh UUIDs generated below.
-  globalThis.__supabaseAuthStore?.clear();
-
   const firstStart = Date.now();
 
   const initialSettings: TISettings = {
@@ -178,6 +174,8 @@ const seedDatabase = async (db: PostgresJsDatabase) => {
   const ownerUser: TIUser = {
     name: 'Test Owner',
     supabaseId: `test-owner-${randomUUIDv7()}`,
+    email: `testowner@pulse.local`,
+    passwordHash: await Bun.password.hash('password123'),
     publicId: randomUUIDv7(),
     avatarId: null,
     bannerId: null,
@@ -203,6 +201,8 @@ const seedDatabase = async (db: PostgresJsDatabase) => {
   const regularUser: TIUser = {
     name: 'Test User',
     supabaseId: `test-user-${randomUUIDv7()}`,
+    email: `testuser@pulse.local`,
+    passwordHash: await Bun.password.hash('password123'),
     publicId: randomUUIDv7(),
     avatarId: null,
     bannerId: null,
@@ -222,6 +222,8 @@ const seedDatabase = async (db: PostgresJsDatabase) => {
   const thirdUser: TIUser = {
     name: 'Test User 2',
     supabaseId: `test-user2-${randomUUIDv7()}`,
+    email: `testuser2@pulse.local`,
+    passwordHash: await Bun.password.hash('password123'),
     publicId: randomUUIDv7(),
     avatarId: null,
     bannerId: null,
@@ -272,23 +274,6 @@ const seedDatabase = async (db: PostgresJsDatabase) => {
   };
 
   await db.insert(messages).values(testMessage);
-
-  // Pre-seed the supabase auth store so login/upload tests can authenticate.
-  // The upload & public & others tests call login('testowner', 'password123')
-  // and login tests call login('testowner@pulse.local', 'password123').
-  const store = globalThis.__supabaseAuthStore;
-  if (store) {
-    store.set('testowner', {
-      supabaseId: ownerUser.supabaseId,
-      password: 'password123',
-      email: 'testowner'
-    });
-    store.set('testowner@pulse.local', {
-      supabaseId: ownerUser.supabaseId,
-      password: 'password123',
-      email: 'testowner@pulse.local'
-    });
-  }
 
   return {
     settings: initialSettings,

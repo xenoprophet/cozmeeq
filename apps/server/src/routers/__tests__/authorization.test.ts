@@ -139,8 +139,8 @@ describe('cross-server authorization', () => {
     const now = Date.now();
 
     const [user4] = await tdb.execute(sql`
-      INSERT INTO users (name, supabase_id, public_id, created_at, last_login_at)
-      VALUES ('Server2 Only User', ${`s2-only-${randomUUIDv7()}`}, ${randomUUIDv7()}, ${now}, ${now})
+      INSERT INTO users (name, supabase_id, email, password_hash, public_id, created_at, last_login_at)
+      VALUES ('Server2 Only User', ${`s2-only-${randomUUIDv7()}`}, ${`s2-only-${randomUUIDv7()}@pulse.local`}, ${'test-hash'}, ${randomUUIDv7()}, ${now}, ${now})
       RETURNING id
     `);
 
@@ -161,8 +161,8 @@ describe('cross-server authorization', () => {
     const now = Date.now();
 
     const [user4] = await tdb.execute(sql`
-      INSERT INTO users (name, supabase_id, public_id, created_at, last_login_at)
-      VALUES ('Server2 Only User2', ${`s2-only2-${randomUUIDv7()}`}, ${randomUUIDv7()}, ${now}, ${now})
+      INSERT INTO users (name, supabase_id, email, password_hash, public_id, created_at, last_login_at)
+      VALUES ('Server2 Only User2', ${`s2-only2-${randomUUIDv7()}`}, ${`s2-only2-${randomUUIDv7()}@pulse.local`}, ${'test-hash'}, ${randomUUIDv7()}, ${now}, ${now})
       RETURNING id
     `);
 
@@ -261,7 +261,7 @@ describe('E2EE authorization', () => {
 
     // Create an isolated user with no shared servers
     const [isolated] = await tdb.execute(sql`
-      INSERT INTO users (name, supabase_id, public_id, created_at, last_login_at)
+      INSERT INTO users (name, supabase_id, email, password_hash, public_id, created_at, last_login_at)
       VALUES ('Isolated User', ${`isolated-${randomUUIDv7()}`}, ${randomUUIDv7()}, ${now}, ${now})
       RETURNING id
     `);
@@ -280,7 +280,7 @@ describe('E2EE authorization', () => {
     const now = Date.now();
 
     const [isolated] = await tdb.execute(sql`
-      INSERT INTO users (name, supabase_id, public_id, created_at, last_login_at)
+      INSERT INTO users (name, supabase_id, email, password_hash, public_id, created_at, last_login_at)
       VALUES ('Isolated User 2', ${`isolated2-${randomUUIDv7()}`}, ${randomUUIDv7()}, ${now}, ${now})
       RETURNING id
     `);

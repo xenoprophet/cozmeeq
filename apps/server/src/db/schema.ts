@@ -212,6 +212,8 @@ const users = pgTable(
   {
     id: serial('id').primaryKey(),
     supabaseId: text('supabase_id').notNull().unique(),
+    email: text('email').notNull().unique(),
+    passwordHash: text('password_hash').notNull(),
     name: text('name').notNull(),
     avatarId: integer('avatar_id').references(() => files.id, {
       onDelete: 'set null'
@@ -237,6 +239,7 @@ const users = pgTable(
   },
   (t) => [
     uniqueIndex('users_supabase_id_idx').on(t.supabaseId),
+    uniqueIndex('users_email_idx').on(t.email),
     index('users_name_idx').on(t.name),
     index('users_banned_idx').on(t.banned),
     index('users_last_login_idx').on(t.lastLoginAt),
