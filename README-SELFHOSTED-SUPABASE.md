@@ -1,3 +1,6 @@
+> [!WARNING]
+> This guide is deprecated. Pulse no longer relies on Supabase Auth. Use `.env.example` and PostgreSQL with built-in auth instead.
+
 # Self-Hosted Supabase Installation Guide
 
 This guide walks you through deploying Pulse with a fully self-hosted Supabase stack (PostgreSQL + GoTrue + Kong) using Docker Compose. No external Supabase project required.
@@ -129,7 +132,7 @@ SUPABASE_SERVICE_ROLE_KEY=<jwt token>
 ## Configure Environment
 
 ```bash
-cp .env.supabase.example .env
+cp .env.example .env
 nano .env
 ```
 

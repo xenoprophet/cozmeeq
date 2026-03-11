@@ -4,10 +4,10 @@ import z from 'zod';
 import { db } from '../db';
 import { isInviteValid } from '../db/queries/invites';
 import { getSettings } from '../db/queries/server';
-import { isDisplayNameTaken } from '../db/queries/users';
+import { getUserByEmail, isDisplayNameTaken } from '../db/queries/users';
 import { invites } from '../db/schema';
 import { getWsInfo } from '../helpers/get-ws-info';
-import { supabaseAdmin } from '../utils/supabase';
+import { createAccessToken, createRefreshToken, hashPassword } from '../utils/better-auth';
 import { isRegistrationDisabled } from '../utils/env';
 import { getJsonBody } from './helpers';
 import { registerUser } from './register-user';
@@ -28,19 +28,20 @@ const registerRouteHandler = async (
   const settings = await getSettings();
   const connectionInfo = getWsInfo(undefined, req);
 
-  // Check display name uniqueness
   if (await isDisplayNameTaken(data.displayName)) {
     throw new HttpValidationError('displayName', 'This display name is already taken');
   }
 
-  // Check if registration is allowed
+  const existingUser = await getUserByEmail(data.email);
+  if (existingUser) {
+    throw new HttpValidationError('email', 'An account with this email already exists');
+  }
+
   if (isRegistrationDisabled() || !settings.allowNewUsers) {
     if (!data.invite) {
       throw new HttpValidationError('email', 'Invalid invite code');
     }
 
-    // Atomic check-and-increment: validates invite exists, not expired, and under max uses
-    // This prevents race conditions where concurrent requests bypass maxUses limits
     const result = await db
       .update(invites)
       .set({ uses: sql`${invites.uses} + 1` })
@@ -54,60 +55,28 @@ const registerRouteHandler = async (
       .returning({ code: invites.code });
 
     if (result.length === 0) {
-      // Invite didn't match — figure out why for a helpful error message
       const inviteError = await isInviteValid(data.invite);
       throw new HttpValidationError('email', inviteError || 'Invalid invite code');
     }
   }
 
-  // Create user in Supabase Auth
-  const { data: createData, error: createError } =
-    await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true
-    });
+  const authUserId = crypto.randomUUID();
+  const passwordHash = await hashPassword(data.password);
 
-  if (createError || !createData.user) {
-    const message = createError?.message || 'Failed to create account';
-
-    if (message.includes('already been registered') || message.includes('already exists')) {
-      throw new HttpValidationError('email', 'An account with this email already exists');
-    }
-
-    throw new HttpValidationError('email', message);
-  }
-
-  // Create app-level user
   await registerUser(
-    createData.user.id,
+    authUserId,
+    data.email,
+    passwordHash,
     data.invite,
     connectionInfo?.ip,
     data.displayName
   );
 
-  // Sign in to get session tokens
-  const { data: signInData, error: signInError } =
-    await supabaseAdmin.auth.signInWithPassword({
-      email: data.email,
-      password: data.password
-    });
-
-  if (signInError || !signInData.session) {
-    throw new HttpValidationError(
-      'email',
-      'Account created but failed to sign in. Please try logging in.'
-    );
-  }
+  const accessToken = await createAccessToken(authUserId);
+  const refreshToken = await createRefreshToken(authUserId);
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({
-      success: true,
-      accessToken: signInData.session.access_token,
-      refreshToken: signInData.session.refresh_token
-    })
-  );
+  res.end(JSON.stringify({ success: true, accessToken, refreshToken }));
 
   return res;
 };

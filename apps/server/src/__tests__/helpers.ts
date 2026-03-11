@@ -2,7 +2,6 @@ import { UploadHeaders } from '@pulse/shared';
 import { eq } from 'drizzle-orm';
 import { appRouter } from '../routers';
 import { users } from '../db/schema';
-import { supabaseAdmin } from '../utils/supabase';
 import { createMockContext } from './context';
 import { getTestDb } from './mock-db';
 import { testsBaseUrl } from './setup';
@@ -10,7 +9,6 @@ import { testsBaseUrl } from './setup';
 const getMockedToken = async (userId: number) => {
   const tdb = getTestDb();
 
-  // Get the user's supabaseId from the test database
   const [user] = await tdb
     .select({ supabaseId: users.supabaseId })
     .from(users)
@@ -21,21 +19,8 @@ const getMockedToken = async (userId: number) => {
     throw new Error(`Test user with id ${userId} not found`);
   }
 
-  // Generate a Supabase token for this user
-  const { data, error } =
-    await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: `test-${user.supabaseId}@pulse.local`
-    });
-
-  if (error || !data) {
-    throw new Error(`Failed to generate test token: ${error?.message}`);
-  }
-
-  // Sign in to get a real access token
-  // For tests, we use the supabaseId directly as a mock token
-  // The test context mock will handle verification
-  return user.supabaseId;
+  const { createAccessToken } = await import('../utils/better-auth');
+  return createAccessToken(user.supabaseId);
 };
 
 const getCaller = async (userId: number) => {
